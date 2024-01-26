@@ -1,10 +1,22 @@
-const { Client, GatewayIntentBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { 
+    Client, 
+    GatewayIntentBits, 
+    ActionRowBuilder, 
+    ButtonBuilder, 
+    ButtonStyle, 
+    EmbedBuilder, 
+    AttachmentBuilder
+ } = require('discord.js');
 require('dotenv').config();
 const { Canvas, resolveImage } = require('canvas-constructor');
 const canvas = require('canvas');
 const { registerFont } = require('canvas');
+const e = require('express');
+
+// Register the font for use in the canvas
 registerFont("./LuckiestGuy-Regular.ttf", { family: 'Luckiest Guy' });
 
+// Create an instance of the Discord client
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -14,6 +26,7 @@ const client = new Client({
     ],
 });
 
+// Event triggered once the bot is ready
 client.once('ready', () => {
     console.log(`Ready! Logged in as ${client.user.tag}`);
 
@@ -23,6 +36,7 @@ client.once('ready', () => {
         `Mewwme's Everywhere`,
     ];
 
+    // Set interval to randomly change the bot's status
     setInterval(() => {
         const randomActivity = activities[Math.floor(Math.random() * activities.length)];
 
@@ -38,8 +52,10 @@ client.once('ready', () => {
     }, 5000);
 });
 
+// Function to generate an image (welcome or goodbye) for a membeR
 const generateImage = async (member, channelId, isWelcome) => {
     try {
+        // List of greetings and images for the welcome/goodbye images
         const greetings = isWelcome ? ["Hi,", "Hallo,", "Heyho,", "Hola,"] : ["Adiós,", "Bye,", "Sayōnara,"];
         const images = [
             "https://cdn.is-a.fun/mewcard/mewwme/1.png",
@@ -77,13 +93,15 @@ const generateImage = async (member, channelId, isWelcome) => {
             "https://cdn.is-a.fun/mewcard/mewwme/33.png",
             "https://cdn.is-a.fun/mewcard/mewwme/34.png",
             "https://cdn.is-a.fun/mewcard/themes7/35.png",];
-        const textColors = ['#f4e0c5', '#ff9200', '#9893fc', '#ff00ea', '#00ff18'];
 
+        const textColors = ['#f4e0c5', '#ff9200', '#9893fc', '#ff00ea', '#00ff18'];
+        // Randomly select greeting, image, and text color
         const randomColor = textColors[Math.floor(Math.random() * textColors.length)];
         const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
         const randomImageIndex = Math.floor(Math.random() * images.length);
         const selectedImage = images[randomImageIndex];
 
+        // Load images and resolve user's display avatar
         const img = await canvas.loadImage(selectedImage);
         const userPfp = await resolveImage(member.user.displayAvatarURL({
             extension: 'jpg',
@@ -94,6 +112,7 @@ const generateImage = async (member, channelId, isWelcome) => {
             ? member.user.username.substring(0, 11) + '...'
             : member.user.username;
 
+        // Create a canvas and construct the welcome/goodbye image
         return new Canvas(994, 198)
             .printImage(img, 0, 0, 994, 198)
             .setColor(randomColor)
@@ -105,10 +124,11 @@ const generateImage = async (member, channelId, isWelcome) => {
             .toBuffer();
     } catch (error) {
         console.error('Error generating image:', error);
-        throw error; // Meneruskan error ke penanganan lain jika diperlukan
+        throw error; // Escalate the error to other handling if needed
     }
 };
 
+// Event triggered when a new member joins the server
 client.on('guildMemberAdd', async (member) => {
     try {
         console.log(`Member joined: ${member.user.tag}`);
@@ -118,11 +138,18 @@ client.on('guildMemberAdd', async (member) => {
             return;
         }
 
-        const image = await generateImage(member, channelId, true);
+        const image = await generateImage(member, channelId, true); // SET TRUE FOR WELCOME GREETINGS
+        const attachment = new AttachmentBuilder(image, {
+            name: "mewwme.png",
+        });   
 
         const channel = await client.channels.fetch(channelId);
 
-        const row1 = new ActionRowBuilder()
+        const WelcomeEmbed = new EmbedBuilder()
+            .setImage("attachment://mewwme.png")
+            .setColor("#f2d7b7")
+
+        const ButtonLink = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
                     .setLabel("Mewwme's")
@@ -133,8 +160,9 @@ client.on('guildMemberAdd', async (member) => {
 
         channel.send({
             content: `Welcome to ${member.guild.name} <@${member.id}>, Stay in your imagination!`,
-            files: [image],
-            components: [row1],
+            embeds: [WelcomeEmbed],
+            files: [attachment],
+            components: [ButtonLink],
         }).catch(error => {
             console.error('Error sending welcome message:', error);
         });
@@ -143,6 +171,7 @@ client.on('guildMemberAdd', async (member) => {
     }
 });
 
+// Event triggered when a member leaves the server
 client.on('guildMemberRemove', async (member) => {
     try {
         console.log(`Member left: ${member.user.tag}`);
@@ -152,13 +181,20 @@ client.on('guildMemberRemove', async (member) => {
             return;
         }
 
-        const image = await generateImage(member, channelId, false);
-
+        const image = await generateImage(member, channelId, false); // SET FALSE FOR GOODBYE GREETINGS
+        const attachment = new AttachmentBuilder(image, {
+            name: "mewwme.png",
+        });
         const channel = await client.channels.fetch(channelId);
 
+        const LeaveEmbed = new EmbedBuilder()
+            .setImage("attachment://mewwme.png")
+            .setColor("#f2d7b7")
+
         channel.send({
-            content: `<@${member.user.id}>`,
-            files: [image],
+            content: `Thanks for being with us <@${member.user.id}>`,
+            embeds: [LeaveEmbed],
+            files: [attachment],
         }).catch(error => {
             console.error('Error sending goodbye message:', error);
         });
